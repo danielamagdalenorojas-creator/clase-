@@ -1,3 +1,5 @@
+%%writefile requirements.txt
+
 streamlit
 statsbombpy
 mplsoccer
