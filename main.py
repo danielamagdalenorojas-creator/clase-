@@ -12,52 +12,56 @@ st.set_page_config(
 )
 
 st.title("⚽ Mapa interactivo de pases")
-st.write("Datos del Mundial de Qatar 2022")
+st.write("Partidos del Mundial de Qatar 2022")
 
-@st.cache_data
+
+@st.cache_data(show_spinner="Descargando partidos...")
 def cargar_partidos():
     return sb.matches(
         competition_id=43,
         season_id=106
     ).reset_index(drop=True)
 
-@st.cache_data
+
+@st.cache_data(show_spinner="Descargando eventos...")
 def cargar_eventos(match_id):
     return sb.events(match_id=match_id)
+
 
 # Descargar partidos
 matches = cargar_partidos()
 
-# Crear nombres para el selector
+# Crear el nombre que aparecerá en el selector
 matches["nombre_partido"] = (
-    matches["home_team"] +
-    " vs " +
-    matches["away_team"] +
-    " — " +
-    matches["match_date"].astype(str)
+    matches["home_team"]
+    + " vs "
+    + matches["away_team"]
+    + " — "
+    + matches["match_date"].astype(str)
 )
 
-# Seleccionar partido
+# Selector de partido
 partido_seleccionado = st.selectbox(
     "Selecciona un partido:",
-    matches["nombre_partido"]
+    matches["nombre_partido"].tolist()
 )
 
-# Obtener información del partido
+# Encontrar el partido seleccionado
 partido = matches[
     matches["nombre_partido"] == partido_seleccionado
 ].iloc[0]
 
 match_id = int(partido["match_id"])
 
-# Descargar eventos
+# Descargar los eventos
 events = cargar_eventos(match_id)
 
-# Filtrar pases
+# Filtrar solamente los pases
 passes = events[
     events["type"] == "Pass"
 ].copy()
 
+# Eliminar pases sin coordenadas
 passes = passes.dropna(
     subset=["location", "pass_end_location"]
 )
@@ -74,13 +78,17 @@ passes[["end_x", "end_y"]] = pd.DataFrame(
     index=passes.index
 )
 
-# Seleccionar equipo
+# Crear la columna si no aparece en los datos
+if "pass_outcome" not in passes.columns:
+    passes["pass_outcome"] = pd.NA
+
+# Selector de equipo
 equipo = st.selectbox(
     "Selecciona un equipo:",
     sorted(passes["team"].dropna().unique())
 )
 
-# Seleccionar minuto
+# Selector de minuto
 minuto = st.slider(
     "Selecciona el minuto:",
     min_value=0,
@@ -88,10 +96,10 @@ minuto = st.slider(
     value=45
 )
 
-# Filtrar pases hasta el minuto elegido
+# Filtrar pases acumulados hasta el minuto seleccionado
 datos = passes[
-    (passes["minute"] <= minuto) &
-    (passes["team"] == equipo)
+    (passes["minute"] <= minuto)
+    & (passes["team"] == equipo)
 ]
 
 # Separar pases completos e incompletos
@@ -103,7 +111,7 @@ incompletos = datos[
     datos["pass_outcome"].notna()
 ]
 
-# Crear cancha
+# Crear la cancha
 pitch = Pitch(
     pitch_type="statsbomb",
     pitch_color="#176B3A",
@@ -111,7 +119,9 @@ pitch = Pitch(
     linewidth=2
 )
 
-fig, ax = pitch.draw(figsize=(12, 8))
+fig, ax = pitch.draw(
+    figsize=(12, 8)
+)
 
 # Dibujar pases completos
 pitch.arrows(
@@ -154,7 +164,7 @@ ax.legend(
     facecolor="white"
 )
 
-# Mostrar gráfica en Streamlit
+# Mostrar el mapa
 st.pyplot(fig)
 
 # Mostrar estadísticas
