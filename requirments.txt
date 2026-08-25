@@ -1,7 +1,5 @@
-%%writefile requirements.txt
-
 streamlit
-statsbombpy
-mplsoccer
 pandas
 matplotlib
+statsbombpy
+mplsoccer
